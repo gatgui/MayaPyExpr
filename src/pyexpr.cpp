@@ -495,7 +495,8 @@ public:
    static MObject aDoubleArrayOutput;
    static MObject aStringOutput;
    static MObject aStringArrayOutput;
-   static MObject aError;
+   static MObject aSucceeded;
+   static MObject aErrorString;
    
    enum OutputType
    {
@@ -547,7 +548,8 @@ MObject PyExpr::aDoubleOutput;
 MObject PyExpr::aDoubleArrayOutput;
 MObject PyExpr::aStringOutput;
 MObject PyExpr::aStringArrayOutput;
-MObject PyExpr::aError;
+MObject PyExpr::aSucceeded;
+MObject PyExpr::aErrorString;
 
 // -----------------------------------------------------------------------------
 
@@ -619,10 +621,15 @@ MStatus PyExpr::Initialize()
    nattr.setUsesArrayDataBuilder(true);
    addAttribute(aStringArrayOutput);
    
-   aError = nattr.create("error", "err", MFnNumericData::kBoolean, 0.0, &stat);
+   aSucceeded = nattr.create("succeeded", "succ", MFnNumericData::kBoolean, 1.0, &stat);
    nattr.setWritable(false);
    nattr.setStorable(false);
-   addAttribute(aError);
+   addAttribute(aSucceeded);
+   
+   aErrorString = tattr.create("errorString", "errs", MFnData::kString, MObject::kNullObj, &stat);
+   tattr.setWritable(false);
+   tattr.setStorable(false);
+   addAttribute(aErrorString);
    
    attributeAffects(aExpression, aIntOutput);
    attributeAffects(aExpression, aIntArrayOutput);
@@ -630,7 +637,8 @@ MStatus PyExpr::Initialize()
    attributeAffects(aExpression, aDoubleArrayOutput);
    attributeAffects(aExpression, aStringOutput);
    attributeAffects(aExpression, aStringArrayOutput);
-   attributeAffects(aExpression, aError);
+   attributeAffects(aExpression, aSucceeded);
+   attributeAffects(aExpression, aErrorString);
    
    attributeAffects(aOutputType, aIntOutput);
    attributeAffects(aOutputType, aIntArrayOutput);
@@ -638,7 +646,8 @@ MStatus PyExpr::Initialize()
    attributeAffects(aOutputType, aDoubleArrayOutput);
    attributeAffects(aOutputType, aStringOutput);
    attributeAffects(aOutputType, aStringArrayOutput);
-   attributeAffects(aOutputType, aError);
+   attributeAffects(aOutputType, aSucceeded);
+   attributeAffects(aOutputType, aErrorString);
    
    return MS::kSuccess;
 }
@@ -739,8 +748,8 @@ MStatus PyExpr::setDependentsDirty(const MPlug &plug, MPlugArray &affectedPlugs)
          break;
       }
       
-      MPlug pError(oNode, aError);
-      affectedPlugs.append(pError);
+      MPlug pSucceeded(oNode, aSucceeded);
+      affectedPlugs.append(pSucceeded);
       
       mEval = true;
    }
@@ -1071,11 +1080,21 @@ MStatus PyExpr::compute(const MPlug &plug, MDataBlock &block)
       
       return MS::kSuccess;
    }
-   else if (plug.attribute() == aError)
+   else if (plug.attribute() == aSucceeded)
    {
-      MDataHandle hError = block.outputValue(aError);
+      MDataHandle hSucceeded = block.outputValue(aSucceeded);
       
-      hError.set(!mSucceeded);
+      hSucceeded.set(mSucceeded);
+      
+      block.setClean(plug);
+      
+      return MS::kSuccess;
+   }
+   else if (plug.attribute() == aErrorString)
+   {
+      MDataHandle hErrorString = block.outputValue(aErrorString);
+      
+      hErrorString.set(mErrorString);
       
       block.setClean(plug);
       
