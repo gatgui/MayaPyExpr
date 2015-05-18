@@ -45,7 +45,7 @@ struct ToStream
 {
    static void OutputSingle(MPlug &plug, std::ostringstream &)
    {
-      MGlobal::displayWarning("[pyexpr] ToStream not implemented for attribute \"" + plug.partialName() + "\"");
+      MGlobal::displayWarning("[pyexpr] ToStream not implemented for attribute \"" + plug.partialName(false, false, false, false, false, true) + "\"");
    }
 };
 
@@ -390,7 +390,7 @@ void Output(MObject &node, MObject &attr, std::ostringstream &oss)
 {
    MPlug plug(node, attr);
             
-   oss << plug.partialName().asChar() << " = ";
+   oss << plug.partialName(false, false, false, false, false, true).asChar() << " = ";
    
    if (plug.isArray())
    {
