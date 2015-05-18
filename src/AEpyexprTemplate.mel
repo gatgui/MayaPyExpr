@@ -1,0 +1,62 @@
+
+global proc AEpyexr_expressionChanged(string $attr, string $sfld)
+{
+   string $expr = `scrollField -q -tx $sfld`;
+   setAttr -type "string" $attr $expr;
+}
+
+global proc AEpyexpr_expressionNew(string $attr)
+{
+   setUITemplate -pushTemplate attributeEditorTemplate;
+   
+   string $parent = `setParent -q`;
+   
+   // create UI
+   string $sfld = `scrollField -ww 0`;
+   
+   scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
+   scrollField -e -tx `getAttr $attr` $sfld;
+   
+   setUITemplate -popTemplate;
+}
+
+global proc AEpyexpr_expressionReplace(string $attr)
+{
+   setUITemplate -pushTemplate attributeEditorTemplate;
+   
+   string $parent = `setParent -q`;
+   
+   string $children[] = `layout -q -childArray $parent`;
+   string $sfld = "";
+   
+   if (size($children) == 1)
+   {
+      $sfld = $parent + "|" + $children[0];
+      
+      scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
+      scrollField -e -tx `getAttr $attr` $sfld;
+   }
+   
+   setUITemplate -popTemplate;
+}
+
+global proc AEpyexprTemplate(string $node)
+{
+   editorTemplate -beginScrollLayout;
+   
+   editorTemplate -beginLayout "Control" -collapse 0;
+   editorTemplate -callCustom "AEpyexpr_expressionNew" "AEpyexpr_expressionReplace" "expression";
+   editorTemplate -addControl "outputType";
+   editorTemplate -addControl "verbose";
+   editorTemplate -endLayout;
+   
+   editorTemplate -beginLayout "Node Behavior" -collapse 1;
+   editorTemplate -addControl "caching";
+   editorTemplate -addControl "nodeState";
+   editorTemplate -endLayout;
+   
+   editorTemplate -addExtraControls;
+   
+   editorTemplate -endScrollLayout;
+}
+
