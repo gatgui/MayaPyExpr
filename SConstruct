@@ -21,7 +21,7 @@ targets = [
    "type"    : "dynamicmodule",
    "ext"     : maya.PluginExt(),
    "srcs"    : glob.glob("src/*.cpp"),
-   "install" : {"scripts": glob.glob("src/*.mel")},
+   "install" : {"maya%s/scripts" % maya.Version(): glob.glob("src/*.mel")},
    "custom"  : [maya.Require, maya.Plugin]}
 ]
 
