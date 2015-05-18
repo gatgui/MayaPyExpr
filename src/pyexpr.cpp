@@ -63,15 +63,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 template <typename FnAttribute>
 struct ToStream
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &)
+   static void OutputSingle(MPlug &plug, std::ostringstream &, bool verbose)
    {
-      MGlobal::displayWarning("[pyexpr] ToStream not implemented for attribute \"" + plug.partialName(false, false, false, false, false, true) + "\"");
+      if (verbose)
+      {
+         MGlobal::displayWarning("[pyexpr] ToStream not implemented for attribute \"" + plug.partialName(false, false, false, false, false, true) + "\"");
+      }
    }
 };
 
 template <> struct ToStream<MFnMessageAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool)
    {
       MPlugArray srcs;
       
@@ -105,7 +108,7 @@ template <> struct ToStream<MFnMessageAttribute>
 
 template <> struct ToStream<MFnUnitAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool verbose)
    {
       MFnUnitAttribute fnAttr(plug.attribute());
       
@@ -124,14 +127,17 @@ template <> struct ToStream<MFnUnitAttribute>
          break;
          
       default:
-         MGlobal::displayInfo("[pyexpr] Unsupported unit type for attribute \"" + fnAttr.name() + "\"");
+         if (verbose)
+         {
+            MGlobal::displayWarning("[pyexpr] Unsupported unit type for attribute \"" + fnAttr.name() + "\"");
+         }
       }
    }
 };
 
 template <> struct ToStream<MFnEnumAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool)
    {
       MFnEnumAttribute fnAttr(plug.attribute());
       
@@ -141,7 +147,7 @@ template <> struct ToStream<MFnEnumAttribute>
 
 template <> struct ToStream<MFnMatrixAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool)
    {
       MObject oData = plug.asMObject();
       MFnMatrixData fnData(oData);
@@ -157,7 +163,7 @@ template <> struct ToStream<MFnMatrixAttribute>
 
 template <> struct ToStream<MFnNumericAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool verbose)
    {
       MFnNumericAttribute fnAttr(plug.attribute());
       
@@ -169,13 +175,16 @@ template <> struct ToStream<MFnNumericAttribute>
       case MFnNumericData::kBoolean:
          oss << (plug.asBool() ? "True" : "False");
          break;
+         
       case MFnNumericData::kChar:
          oss << plug.asChar();
          break;
+         
       case MFnNumericData::kByte:
       case MFnNumericData::kShort:
          oss << plug.asShort();
          break;
+         
       case MFnNumericData::k2Short:
          {
             short v0, v1;
@@ -183,6 +192,7 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ")";
          }
          break;
+         
       case MFnNumericData::k3Short:
          {
             short v0, v1, v2;
@@ -190,10 +200,12 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ", " << v2 << ")";
          }
          break;
+         
       case MFnNumericData::kLong:
       //case MFnNumericData::kInt:
          oss << plug.asInt();
          break;
+         
       case MFnNumericData::k2Long:
       //case MFnNumericData::k2Int:
          {
@@ -210,9 +222,11 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ", " << v2 << ")";
          }
          break;
+         
       case MFnNumericData::kFloat:
          oss << plug.asFloat();
          break;
+         
       case MFnNumericData::k2Float:
          {
             float v0, v1;
@@ -220,6 +234,7 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ")";
          }
          break;
+         
       case MFnNumericData::k3Float:
          {
             float v0, v1, v2;
@@ -227,9 +242,11 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ", " << v2 << ")";
          }
          break;
+         
       case MFnNumericData::kDouble:
          oss << plug.asDouble();
          break;
+         
       case MFnNumericData::k2Double:
          {
             double v0, v1;
@@ -237,6 +254,7 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ")";
          }
          break;
+         
       case MFnNumericData::k3Double:
          {
             double v0, v1, v2;
@@ -244,6 +262,7 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ", " << v2 << ")";
          }
          break;
+         
       case MFnNumericData::k4Double:
          {
             double v0, v1, v2, v3;
@@ -251,15 +270,19 @@ template <> struct ToStream<MFnNumericAttribute>
             oss << "(" << v0 << ", " << v1 << ", " << v2 << ", " << v3 << ")";
          }
          break;
+         
       default:
-         MGlobal::displayInfo("[pyexpr] Unsupported numeric type for attribute \"" + fnAttr.name() + "\"");
+         if (verbose)
+         {
+            MGlobal::displayWarning("[pyexpr] Unsupported numeric type for attribute \"" + fnAttr.name() + "\"");
+         }
       }
    }
 };
 
 template <> struct ToStream<MFnTypedAttribute>
 {
-   static void OutputSingle(MPlug &plug, std::ostringstream &oss)
+   static void OutputSingle(MPlug &plug, std::ostringstream &oss, bool verbose)
    {
       MFnTypedAttribute fnAttr(plug.attribute());
       
@@ -267,12 +290,14 @@ template <> struct ToStream<MFnTypedAttribute>
       {
       case MFnData::kNumeric:
          {
-            ToStream<MFnNumericAttribute>::OutputSingle(plug, oss);
+            ToStream<MFnNumericAttribute>::OutputSingle(plug, oss, verbose);
          }
          break;
+         
       case MFnData::kString:
          oss << "'" << plug.asString().asChar() << "'";
          break;
+         
       case MFnData::kMatrix:
          {
             MObject oData = plug.asMObject();
@@ -285,6 +310,8 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << " (" << M[2][0] << ", " << M[2][1] << ", " << M[2][2] << ", " << M[2][3] << "),";
             oss << " (" << M[3][0] << ", " << M[3][1] << ", " << M[3][2] << ", " << M[3][3] << "))";
          }
+         break;
+         
       case MFnData::kStringArray:
          {
             MObject oData = plug.asMObject();
@@ -307,6 +334,7 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << "]";
          }
          break;
+         
       case MFnData::kDoubleArray:
          {
             MObject oData = plug.asMObject();
@@ -329,6 +357,7 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << "]";
          }
          break;
+         
       case MFnData::kIntArray:
          {
             MObject oData = plug.asMObject();
@@ -351,6 +380,7 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << "]";
          }
          break;
+         
       case MFnData::kPointArray:
          {
             MObject oData = plug.asMObject();
@@ -375,6 +405,7 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << "]";
          }
          break;
+         
       case MFnData::kVectorArray:
          {
             MObject oData = plug.asMObject();
@@ -399,14 +430,18 @@ template <> struct ToStream<MFnTypedAttribute>
             oss << "]";
          }
          break;
+         
       default:
-         MGlobal::displayInfo("[pyexpr] Unsupported type for attribute \"" + fnAttr.name() + "\"");
+         if (verbose)
+         {
+            MGlobal::displayWarning("[pyexpr] Unsupported type for attribute \"" + fnAttr.name() + "\"");
+         }
       }
    }
 };
 
 template <typename FnAttribute>
-void Output(MObject &node, MObject &attr, std::ostringstream &oss)
+void Output(MObject &node, MObject &attr, std::ostringstream &oss, bool verbose)
 {
    MPlug plug(node, attr);
             
@@ -422,7 +457,7 @@ void Output(MObject &node, MObject &attr, std::ostringstream &oss)
       {
          MPlug elem = plug[i];
          
-         ToStream<FnAttribute>::OutputSingle(elem, oss);
+         ToStream<FnAttribute>::OutputSingle(elem, oss, verbose);
          
          if (i + 1 < count)
          {
@@ -434,7 +469,7 @@ void Output(MObject &node, MObject &attr, std::ostringstream &oss)
    }
    else
    {
-      ToStream<FnAttribute>::OutputSingle(plug, oss);
+      ToStream<FnAttribute>::OutputSingle(plug, oss, verbose);
       oss << std::endl;
    }
 }
@@ -749,31 +784,34 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
          
          if (oAttr.hasFn(MFn::kMessageAttribute))
          {
-            Output<MFnMessageAttribute>(oSelf, oAttr, oss);
+            Output<MFnMessageAttribute>(oSelf, oAttr, oss, verbose);
          }
          else if (oAttr.hasFn(MFn::kUnitAttribute))
          {
-            Output<MFnUnitAttribute>(oSelf, oAttr, oss);
+            Output<MFnUnitAttribute>(oSelf, oAttr, oss, verbose);
          }
          else if (oAttr.hasFn(MFn::kEnumAttribute))
          {
-            Output<MFnEnumAttribute>(oSelf, oAttr, oss);
+            Output<MFnEnumAttribute>(oSelf, oAttr, oss, verbose);
          }
          else if (oAttr.hasFn(MFn::kMatrixAttribute))
          {
-            Output<MFnMatrixAttribute>(oSelf, oAttr, oss);
+            Output<MFnMatrixAttribute>(oSelf, oAttr, oss, verbose);
          }
          else if (oAttr.hasFn(MFn::kNumericAttribute))
          {
-            Output<MFnNumericAttribute>(oSelf, oAttr, oss);
+            Output<MFnNumericAttribute>(oSelf, oAttr, oss, verbose);
          }
          else if (oAttr.hasFn(MFn::kTypedAttribute))
          {
-            Output<MFnTypedAttribute>(oSelf, oAttr, oss);
+            Output<MFnTypedAttribute>(oSelf, oAttr, oss, verbose);
          }
          else
          {
-            MGlobal::displayWarning("[pyexpr] Unsupported type for attribute \"" + fnAttr.name()  + "\"");
+            if (verbose)
+            {
+               MGlobal::displayWarning("[pyexpr] Unsupported type for attribute \"" + fnAttr.name()  + "\"");
+            }
          }
       }
       
@@ -849,12 +887,13 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
             break;
          case OT_string:
          default:
-            if (outputType != OT_string)
-            {
-               MGlobal::displayWarning("[pyexpr] Default output type to 'string'");
-            }
             if (verbose)
             {
+               if (outputType != OT_string)
+               {
+                  MGlobal::displayWarning("[pyexpr] Default output type to 'string'");
+               }
+               
                MGlobal::displayInfo("[pyexpr] Evaluating string expression");
             }
             stat = MGlobal::executePythonCommand(func, mStringOutput);
@@ -866,7 +905,10 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
       if (!mSucceeded)
       {
          mErrorString = stat.errorString();
-         MGlobal::displayError("[pyexpr] " + mErrorString);
+         if (verbose)
+         {
+            MGlobal::displayError("[pyexpr] " + mErrorString);
+         }
       }
       else
       {
