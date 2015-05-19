@@ -24,6 +24,11 @@ global proc AEpyexr_expressionChanged(string $attr, string $sfld)
    setAttr -type "string" $attr $expr;
 }
 
+global proc AEpyexpr_expressionUpdated(string $attr, string $sfld)
+{
+   scrollField -e -tx `getAttr $attr` $sfld;
+}
+
 global proc AEpyexpr_expressionNew(string $attr)
 {
    setUITemplate -pushTemplate attributeEditorTemplate;
@@ -35,6 +40,8 @@ global proc AEpyexpr_expressionNew(string $attr)
    
    scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
    scrollField -e -tx `getAttr $attr` $sfld;
+   
+   scriptJob -parent $sfld -attributeChange $attr ("AEpyexpr_expressionUpdated(\"" + $attr + "\", \"" + $sfld + "\")");
    
    setUITemplate -popTemplate;
 }
@@ -54,6 +61,8 @@ global proc AEpyexpr_expressionReplace(string $attr)
       
       scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
       scrollField -e -tx `getAttr $attr` $sfld;
+      
+      scriptJob -parent $sfld -replacePrevious -attributeChange $attr ("AEpyexpr_expressionUpdated(\"" + $attr + "\", \"" + $sfld + "\")");
    }
    
    setUITemplate -popTemplate;
