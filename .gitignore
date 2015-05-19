@@ -26,3 +26,9 @@
 *.exe
 *.out
 *.app
+
+release/
+debug/
+.build/
+excons.cache
+*.dblite

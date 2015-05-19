@@ -1,0 +1,90 @@
+/*
+Copyright (C) 2015  Gaetan Guidet
+
+This file is part of MayaPyExpr.
+
+MayaPyExpr is free software; you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public
+License as published by the Free Software Foundation; either
+version 2.1 of the License, or (at your option) any later version.
+
+MayaPyExpr is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public
+License along with this library; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+global proc AEpyexr_expressionChanged(string $attr, string $sfld)
+{
+   string $expr = `scrollField -q -tx $sfld`;
+   setAttr -type "string" $attr $expr;
+}
+
+global proc AEpyexpr_expressionUpdated(string $attr, string $sfld)
+{
+   scrollField -e -tx `getAttr $attr` $sfld;
+}
+
+global proc AEpyexpr_expressionNew(string $attr)
+{
+   setUITemplate -pushTemplate attributeEditorTemplate;
+   
+   string $parent = `setParent -q`;
+   
+   // create UI
+   string $sfld = `scrollField -ww 0`;
+   
+   scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
+   scrollField -e -tx `getAttr $attr` $sfld;
+   
+   scriptJob -parent $sfld -attributeChange $attr ("AEpyexpr_expressionUpdated(\"" + $attr + "\", \"" + $sfld + "\")");
+   
+   setUITemplate -popTemplate;
+}
+
+global proc AEpyexpr_expressionReplace(string $attr)
+{
+   setUITemplate -pushTemplate attributeEditorTemplate;
+   
+   string $parent = `setParent -q`;
+   
+   string $children[] = `layout -q -childArray $parent`;
+   string $sfld = "";
+   
+   if (size($children) == 1)
+   {
+      $sfld = $parent + "|" + $children[0];
+      
+      scrollField -e -cc ("AEpyexr_expressionChanged(\"" + $attr + "\", \"" + $sfld + "\")") $sfld;
+      scrollField -e -tx `getAttr $attr` $sfld;
+      
+      scriptJob -parent $sfld -replacePrevious -attributeChange $attr ("AEpyexpr_expressionUpdated(\"" + $attr + "\", \"" + $sfld + "\")");
+   }
+   
+   setUITemplate -popTemplate;
+}
+
+global proc AEpyexprTemplate(string $node)
+{
+   editorTemplate -beginScrollLayout;
+   
+   editorTemplate -beginLayout "Control" -collapse 0;
+   editorTemplate -callCustom "AEpyexpr_expressionNew" "AEpyexpr_expressionReplace" "expression";
+   editorTemplate -addControl "outputType";
+   editorTemplate -addControl "verbose";
+   editorTemplate -endLayout;
+   
+   editorTemplate -beginLayout "Node Behavior" -collapse 1;
+   editorTemplate -addControl "caching";
+   editorTemplate -addControl "nodeState";
+   editorTemplate -endLayout;
+   
+   editorTemplate -addExtraControls;
+   
+   editorTemplate -endScrollLayout;
+}
+
