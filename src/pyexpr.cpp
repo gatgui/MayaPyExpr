@@ -826,11 +826,24 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
       
       // Build function declaration
       
+      // The error string returned by MStatus after an executePythonCommand doesn't contain
+      //   any usefull information
+      // Catch any exception and set a global error string variable
+      // In verbose mode, re-raise the caught exception and let maya handle the output
+      // When not in verbose mode, return a valid default value and set success status
+      //   depending on the global error string content. Empty means no error happened
+      
       MString func = "_pyexpr_eval_" + nSelf.name() + "()";
+      MString errv = "_pyexpr_err_" + nSelf.name();
       
       MString vars = oss.str().c_str();
       
-      MString declFunc = "def " + func + ":\n";
+      MString decl = errv + " = ''\n";
+      
+      decl += "def " + func + ":\n"
+              "  global " + errv + "\n"
+              "  " + errv + " = ''\n\n"
+              "  try:\n";
       
       MString remain = vars + expr;
       
@@ -838,22 +851,48 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
       
       while (i != -1)
       {
-         declFunc += "  " + remain.substringW(0, i);
+         decl += "    " + remain.substringW(0, i);
          remain = remain.substringW(i + 1, remain.numChars() - 1);
          i = remain.indexW('\n');
       }
       
       if (remain.length() > 0)
       {
-         declFunc += "  " + remain;
+         decl += "    " + remain;
+      }
+      
+      decl += "\n  except Exception, e:\n"
+              "    " + errv + " = '%s: %s' % (e.__class__.__name__, str(e))\n";
+      
+      if (verbose)
+      {
+         decl += "    raise e\n";
+      }
+      else
+      {
+         switch (outputType)
+         {
+         case OT_int:
+         case OT_double:
+            decl += "    return 0\n";
+            break;
+         case OT_int_array:
+         case OT_double_array:
+         case OT_string_array:
+            decl += "    return []\n";
+            break;
+         case OT_string:
+         default:
+            decl += "    return ''\n";
+         }
       }
       
       if (verbose)
       {
-         MGlobal::displayInfo("[pyexpr] Declare function:\n" + declFunc);
+         MGlobal::displayInfo("[pyexpr] Declare function:\n" + decl);
       }
       
-      if (MGlobal::executePythonCommand(declFunc) == MS::kSuccess)
+      if (MGlobal::executePythonCommand(decl) == MS::kSuccess)
       {
          // Only one-liner have return values
          
@@ -911,16 +950,19 @@ bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
       
       mSucceeded = (stat == MS::kSuccess);
       
-      if (!mSucceeded)
+      if (!verbose || !mSucceeded)
       {
-         mErrorString = stat.errorString();
-         if (verbose)
+         mErrorString = MGlobal::executePythonCommandStringResult(errv);
+         
+         // Note: when not in verbose mode, error string will only be set if an exception was caught
+         if (mErrorString.length() > 0)
          {
-            MGlobal::displayError("[pyexpr] " + mErrorString);
+            mSucceeded = false;
          }
       }
       else
       {
+         // Avoid unnecessary script execution
          mErrorString = "";
       }
       
@@ -974,7 +1016,6 @@ MStatus PyExpr::compute(const MPlug &plug, MDataBlock &block)
       
       return MS::kSuccess;
    }
-   
    else if (plug.attribute() == aStringOutput)
    {
       if (outputType != OT_string)
@@ -1084,7 +1125,7 @@ MStatus PyExpr::compute(const MPlug &plug, MDataBlock &block)
    {
       MDataHandle hSucceeded = block.outputValue(aSucceeded);
       
-      hSucceeded.set(mSucceeded);
+      hSucceeded.set(success);
       
       block.setClean(plug);
       
