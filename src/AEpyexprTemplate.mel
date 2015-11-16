@@ -74,6 +74,7 @@ global proc AEpyexprTemplate(string $node)
    
    editorTemplate -beginLayout "Control" -collapse 0;
    editorTemplate -callCustom "AEpyexpr_expressionNew" "AEpyexpr_expressionReplace" "expression";
+   editorTemplate -addControl "evalOnTimeChanged";
    editorTemplate -addControl "outputType";
    editorTemplate -addControl "verbose";
    editorTemplate -endLayout;

@@ -55,6 +55,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #include <maya/MPoint.h>
 #include <maya/MVector.h>
 #include <maya/MDagPath.h>
+#include <maya/MDGMessage.h>
 #include <sstream>
 #include <string>
 
@@ -487,6 +488,7 @@ public:
    
    static MObject aExpression;
    static MObject aOutputType;
+   static MObject aEvalOnTimeChanged;
    static MObject aVerbose;
    
    static MObject aIntOutput;
@@ -518,6 +520,12 @@ public:
    virtual MStatus compute(const MPlug &plug, MDataBlock &block);
    virtual void postConstructor();
    
+   virtual bool getInternalValueInContext(const MPlug &plug, MDataHandle &hdl, MDGContext &ctx);
+   virtual bool setInternalValueInContext(const MPlug &plug, const MDataHandle &hdl, MDGContext &ctx);
+   virtual void copyInternalData(MPxNode *other);
+   
+   void evalExpression();
+   
 private:
    
    bool evalExpression(const MString &expr, short outputType, bool verbose);
@@ -534,13 +542,24 @@ private:
    MDoubleArray mDoubleArrayOutput;
    MString mStringOutput;
    MStringArray mStringArrayOutput;
+   bool mHasTimeChangedCB;
+   MCallbackId mTimeChangedCB;
 };
+
+// -----------------------------------------------------------------------------
+
+void TimeChanged(MTime &, void *clientData)
+{
+   PyExpr *node = (PyExpr*) clientData;
+   node->evalExpression();
+}
 
 // -----------------------------------------------------------------------------
 
 MTypeId PyExpr::Id(PYEXPR_ID);
 MObject PyExpr::aExpression;
 MObject PyExpr::aOutputType;
+MObject PyExpr::aEvalOnTimeChanged;
 MObject PyExpr::aVerbose;
 MObject PyExpr::aIntOutput;
 MObject PyExpr::aIntArrayOutput;
@@ -579,6 +598,10 @@ MStatus PyExpr::Initialize()
    eattr.addField("string", OT_string);
    eattr.addField("string[]", OT_string_array);
    addAttribute(aOutputType);
+   
+   aEvalOnTimeChanged = nattr.create("evalOnTimeChanged", "evltc", MFnNumericData::kBoolean, 0.0, &stat);
+   nattr.setInternal(true);
+   addAttribute(aEvalOnTimeChanged);
    
    aVerbose = nattr.create("verbose", "verb", MFnNumericData::kBoolean, 0.0, &stat);
    addAttribute(aVerbose);
@@ -660,11 +683,17 @@ PyExpr::PyExpr()
    , mSucceeded(false)
    , mIntOutput(0)
    , mDoubleOutput(0.0)
+   , mHasTimeChangedCB(false)
+   , mTimeChangedCB(0)
 {
 }
 
 PyExpr::~PyExpr()
 {
+   if (mHasTimeChangedCB)
+   {
+      MMessage::removeCallback(mTimeChangedCB);
+   }
 }
 
 void PyExpr::postConstructor()
@@ -759,6 +788,127 @@ MStatus PyExpr::setDependentsDirty(const MPlug &plug, MPlugArray &affectedPlugs)
    }
    
    return MS::kSuccess;
+}
+
+bool PyExpr::getInternalValueInContext(const MPlug &plug, MDataHandle &hdl, MDGContext &ctx)
+{
+   if (plug == aEvalOnTimeChanged)
+   {
+      hdl.set(mHasTimeChangedCB);
+      return true;
+   }
+   else
+   {
+      return MPxNode::getInternalValueInContext(plug, hdl, ctx);
+   }
+}
+
+bool PyExpr::setInternalValueInContext(const MPlug &plug, const MDataHandle &hdl, MDGContext &ctx)
+{
+   MStatus stat = MS::kSuccess;
+   
+   if (plug == aEvalOnTimeChanged)
+   {
+      if (hdl.asBool())
+      {
+         if (!mHasTimeChangedCB)
+         {  
+            // or addForceUpdateCallback
+            mTimeChangedCB = MDGMessage::addTimeChangeCallback(TimeChanged, (void*)this, &stat);
+            
+            if (stat == MS::kSuccess)
+            {
+               mHasTimeChangedCB = true;
+            }
+            else
+            {
+               // failed to add
+               return false;
+            }
+         }
+         else
+         {
+            // already set
+         }
+      }
+      else
+      {
+         if (mHasTimeChangedCB)
+         {
+            if (MMessage::removeCallback(mTimeChangedCB) == MS::kSuccess)
+            {
+               mHasTimeChangedCB = false;
+            }
+            else
+            {
+               // failed to remove
+               return false;
+            }
+         }
+      }
+      
+      return true;
+   }
+   else
+   {
+      return MPxNode::setInternalValueInContext(plug, hdl, ctx);
+   }  
+}
+
+void PyExpr::copyInternalData(MPxNode *other)
+{
+   PyExpr *rhs = (PyExpr*) other;
+   
+   rhs->mEval = mEval;
+   rhs->mSucceeded = mSucceeded;
+   rhs->mErrorString = mErrorString;
+   rhs->mIntOutput = mIntOutput;
+   rhs->mIntArrayOutput = mIntArrayOutput;
+   rhs->mDoubleOutput = mDoubleOutput;
+   rhs->mDoubleArrayOutput = mDoubleArrayOutput;
+   rhs->mStringOutput = mStringOutput;
+   rhs->mStringArrayOutput = mStringArrayOutput;
+}
+
+void PyExpr::evalExpression()
+{
+   MDataBlock block = forceCache();
+   MObject oSelf = thisMObject();
+   MFnDependencyNode nSelf(oSelf);
+   
+   MDataHandle hOutputType = block.inputValue(aOutputType);
+   
+   short outputType = hOutputType.asShort();
+   
+   MPlug outPlug;
+   
+   switch (outputType)
+   {
+   case OT_int:
+      outPlug = nSelf.findPlug("outInt");
+      break;
+   case OT_int_array:
+      outPlug = nSelf.findPlug("outInts");
+      break;
+   case OT_double:
+      outPlug = nSelf.findPlug("outDouble");
+      break;
+   case OT_double_array:
+      outPlug = nSelf.findPlug("outDoubles");
+      break;
+   case OT_string:
+      outPlug = nSelf.findPlug("outString");
+      break;
+   case OT_string_array:
+      outPlug = nSelf.findPlug("outStrings");
+   default:
+      break;
+   }
+   
+   if (!outPlug.isNull())
+   {
+      compute(outPlug, block);
+   }
 }
 
 bool PyExpr::evalExpression(const MString &expr, short outputType, bool verbose)
